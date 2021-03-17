@@ -39,31 +39,30 @@ public class ProtocolEngineImpl implements ProtocolEngine, RequestEnemyMoveObser
     }
 
     @Override
-    public void connect(int port, String hostname)
+    public void connect(int port, boolean asServer)
             throws ProtocolEngineStatusException,
             ProtocolEngineNoConnectionException,
             IllegalArgumentException {
-        if(hostname == null)
-            throw new IllegalArgumentException("you are trying to set up a client. but hostname is null!");
-        buildConnection(port, hostname);
-    }
+        if(this.status != ProtocolStatus.NOT_CONNECTED)
+            throw new ProtocolEngineStatusException("trying to establish new connection, " +
+                    "but protocol Engine not it NOT_CONNECTED status. actual status: " + this.status);
 
-    @Override
-    public void connect(int port) throws
-            ProtocolEngineStatusException,
-            ProtocolEngineNoConnectionException,
-            IllegalArgumentException {
-        buildConnection(port, null);
-    }
-
-    private void buildConnection(int port, String hostname) throws
-            ProtocolEngineStatusException,
-            ProtocolEngineNoConnectionException,
-            IllegalArgumentException{
         if(port < 1000 || port > 9999)
             throw new IllegalArgumentException("port has to be 4 digit integer. But is: " + port);
-        boolean asServer
+
+        this.tcpStream = new TCPStream(port, asServer, gameEngine.getName());
+        try {
+            tcpStream.waitForConnection();
+            tcpStream.checkConnected();
+            os = tcpStream.getOutputStream();
+            is = tcpStream.getInputStream();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        this.status = ProtocolStatus.CONNECTED;
+
     }
+
 
     @Override
     public ProtocolStatus getStatus() {

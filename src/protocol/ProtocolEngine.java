@@ -3,24 +3,14 @@ package protocol;
 public interface ProtocolEngine {
     /**
      * Engine has to be in status ProtocolStatus.NOT_CONNECTED, check with getStatus()
-     * connect to peer server, you are a client
-     * only relevant for first connection
+     * connect to tcp peer
      * @param port 4 digit integer
-     * @param hostname not null
+     * @param asServer true if you are the server, false otherwise
+     *                 only relevant for first connection after this peer to peer
      * @throws ProtocolEngineNoConnectionException can't connect to peer
      * @throws IllegalArgumentException
      */
-    void connect(int port, String hostname) throws ProtocolEngineNoConnectionException, IllegalArgumentException, ProtocolEngineStatusException;
-
-    /**
-     * Engine has to be in status ProtocolStatus.NOT_CONNECTED, check with getStatus()
-     * connect to peer client, you are the server
-     * only relevant for first connection
-     * @param port 4 digit integer
-     * @throws ProtocolEngineNoConnectionException
-     * @throws IllegalArgumentException
-     */
-    void connect(int port) throws ProtocolEngineNoConnectionException, IllegalArgumentException, ProtocolEngineStatusException;
+    void connect(int port, boolean asServer) throws ProtocolEngineNoConnectionException, IllegalArgumentException, ProtocolEngineStatusException;
 
     /**
      * get current status

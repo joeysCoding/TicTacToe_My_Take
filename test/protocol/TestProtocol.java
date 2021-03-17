@@ -84,7 +84,7 @@ public class TestProtocol {
 
 
     @Test
-    public void connectGoodrequestNameGood() throws ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException, PositionOutOfBoundException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, BoardPositionNotFreeException, InterruptedException {
+    public void connectGoodrequestNameGood() throws ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException, PositionOutOfBoundException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, BoardPositionNotFreeException, InterruptedException, ProtocolEngineStatusException {
         MoveObserver enemyBobMoved = new EnemyMoveObserver();
         MoveObserver enemyAliceMoved = new EnemyMoveObserver();
 
@@ -99,8 +99,8 @@ public class TestProtocol {
 
         // connect; server first
         int port = getUniquePort();
-        aliceProtocol.connect(port);
-        bobProtocol.connect(port, HOSTNAME);
+        aliceProtocol.connect(port, true);
+        bobProtocol.connect(port, false);
 
         Assert.assertEquals(ProtocolStatus.CONNECTED, aliceProtocol.getStatus());
         Assert.assertEquals(ProtocolStatus.CONNECTED, bobProtocol.getStatus());
