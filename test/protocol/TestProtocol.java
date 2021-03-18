@@ -6,6 +6,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
+
 public class TestProtocol {
     private static final String HOSTNAME = "localhost";
     private static final int PORT_BASE_NR = 5555;
@@ -30,10 +32,7 @@ public class TestProtocol {
 //        newPortCounter++;
 //    }
 
-    private ProtocolEngine getProtocolEngine(String name,
-                                             MoveObserver moveObserver,
-                                             RequestEnemyMoveObserver requestEnemyMoveObserver) {
-        // todo: impl needs to now starter and nonstarter pieces
+    private ProtocolEngine getProtocolEngine(String name){
         return null;
     }
 
@@ -84,15 +83,15 @@ public class TestProtocol {
 
 
     @Test
-    public void connectGoodrequestNameGood() throws ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException, PositionOutOfBoundException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, BoardPositionNotFreeException, InterruptedException, ProtocolEngineStatusException {
+    public void connectGoodrequestNameGood() throws ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException, PositionOutOfBoundException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, BoardPositionNotFreeException, InterruptedException, ProtocolEngineStatusException, IOException, ProtocolEngineNoEnemyCoinReceivedException {
         MoveObserver enemyBobMoved = new EnemyMoveObserver();
         MoveObserver enemyAliceMoved = new EnemyMoveObserver();
 
-        RequestEnemyMoveObserver enemyBobReady = new EnemyMoveRequest();
-        RequestEnemyMoveObserver enemyAliceReady = new EnemyMoveRequest();
+//        RequestEnemyMoveObserver enemyBobReady = new EnemyMoveRequest();
+//        RequestEnemyMoveObserver enemyAliceReady = new EnemyMoveRequest();
 
-        ProtocolEngine aliceProtocol = getProtocolEngine(ALICE, enemyBobMoved, enemyBobReady);
-        ProtocolEngine bobProtocol = getProtocolEngine(BOB, enemyAliceMoved, enemyAliceReady);
+        ProtocolEngine aliceProtocol = getProtocolEngine(ALICE);
+        ProtocolEngine bobProtocol = getProtocolEngine(BOB);
 
         Assert.assertEquals(ProtocolStatus.NOT_CONNECTED, aliceProtocol.getStatus());
         Assert.assertEquals(ProtocolStatus.NOT_CONNECTED, bobProtocol.getStatus());
@@ -122,6 +121,7 @@ public class TestProtocol {
         Assert.assertTrue(startAlice ^ startBob);
 
 
+
         // todo: need alice game engine
         // use code from Game Engine Test to simulate game
         // feed the gameengine with observers and make private class here in test
@@ -146,6 +146,9 @@ public class TestProtocol {
         bobGameEngine.pick(nonStarter);
         Assert.assertEquals(secondTurn, bobGameEngine.getStatus());
 
+        // start the game
+        aliceProtocol.startGame(aliceGameEngine);
+        bobProtocol.startGame(bobGameEngine);
         /////////////////////////////////////////////////////////////////////////////////
         ///                         set
         /////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +186,7 @@ public class TestProtocol {
 
         waitForBob(aliceGameEngine,starter);
         aliceGameEngine.set(new Position(0,2, starter));
-        Assert.assertEquals(GameStatus.GAME_ENDED, aliceGameEngine.getStatus());
+        Assert.assertEquals(GameStatus.GAME_WON, aliceGameEngine.getStatus());
         Assert.assertTrue(aliceGameEngine.hasWon(starter));
         Assert.assertTrue(aliceGameEngine.hasWon(nonStarter));
         try {
@@ -192,7 +195,7 @@ public class TestProtocol {
             e.printStackTrace();
         }
         // Bobs Gameengine has to recognize that he lost
-        Assert.assertEquals(GameStatus.GAME_ENDED, bobGameEngine.getStatus());
+        Assert.assertEquals(GameStatus.GAME_WON, bobGameEngine.getStatus());
         Assert.assertFalse(bobGameEngine.hasWon(nonStarter));
         Assert.assertTrue(bobGameEngine.hasWon(starter));
 

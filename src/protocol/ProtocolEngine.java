@@ -1,5 +1,9 @@
 package protocol;
 
+import game.GameEngine;
+
+import java.io.IOException;
+
 public interface ProtocolEngine {
     /**
      * Engine has to be in status ProtocolStatus.NOT_CONNECTED, check with getStatus()
@@ -31,10 +35,15 @@ public interface ProtocolEngine {
      * @return true - I start the game  false - Enemy starts game
      * @throws ProtocolEngineNoConnectionException
      */
-    boolean amIStarter() throws ProtocolEngineNoConnectionException;
+    boolean amIStarter() throws ProtocolEngineNoConnectionException, IOException, ProtocolEngineNoEnemyCoinReceivedException;
 
     /**
      * Game has ended clean up
      */
     void close();
+
+    /**
+     * starts the game
+     */
+    void startGame(GameEngine gameEngine);
 }

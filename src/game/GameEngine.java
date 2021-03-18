@@ -53,4 +53,8 @@ public interface GameEngine {
     boolean isReadyForMove(Piece piece);
 
     String getName();
+
+    Piece getPieceUS();
+
+    Piece getPieceEnemy();
 }

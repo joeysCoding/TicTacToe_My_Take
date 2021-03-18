@@ -88,7 +88,7 @@ public class GameEngineImpl implements GameEngine {
         try{
             board.set(position);
             if(board.hasWon(position.piece))
-                this.setStatus(GameStatus.GAME_ENDED);
+                this.setStatus(GameStatus.GAME_WON);
             else {
                 this.setStatus(this.status == GameStatus.TURN_X ? GameStatus.TURN_O : GameStatus.TURN_X);
                 if(position.piece == pieceEnemy)
@@ -162,6 +162,16 @@ public class GameEngineImpl implements GameEngine {
     @Override
     public String getName() {
         return this.playerNameUS;
+    }
+
+    @Override
+    public Piece getPieceUS(){
+        return this.pieceUS;
+    }
+
+    @Override
+    public Piece getPieceEnemy(){
+        return this.pieceEnemy;
     }
 
 

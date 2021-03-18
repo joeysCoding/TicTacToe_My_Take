@@ -4,5 +4,6 @@ public enum GameStatus {
     WAITING_FOR_PICK,
     TURN_O,
     TURN_X,
-    GAME_ENDED;
+    GAME_OVER,
+    GAME_WON;
 }

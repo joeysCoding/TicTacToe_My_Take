@@ -105,7 +105,7 @@ public class TestGame {
         Assert.assertEquals(firstTurn, gameEngine.getStatus());
 
         gameEngine.set(new Position(0,2, starter));
-        Assert.assertEquals(GameStatus.GAME_ENDED, gameEngine.getStatus());
+        Assert.assertEquals(GameStatus.GAME_WON, gameEngine.getStatus());
 
         Assert.assertTrue(gameEngine.hasWon(starter));
         Assert.assertFalse(gameEngine.hasWon(nonStarter));
