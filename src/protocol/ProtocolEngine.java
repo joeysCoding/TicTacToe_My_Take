@@ -28,7 +28,7 @@ public interface ProtocolEngine {
      * @throws ProtocolEngineNoConnectionException can't connect to peer
      * @throws ProtocolEngineResponseFormatException response violates protocol
      */
-    String requestNameEnemy() throws  ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException;
+    String requestNameBob() throws  ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException;
 
     /**
      * negotiates the game starter

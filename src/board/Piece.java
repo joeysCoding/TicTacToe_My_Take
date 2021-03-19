@@ -7,6 +7,10 @@ public enum Piece {
     X,
     O;
 
+    public static final Piece WIN = X; // Alice piece when she wins
+    public static final Piece LOSS = O;   // Alice piece when she loses
+    public static final Piece STARTER = X; // refers to which piece starts game
+
     public static int getLowerOrdinal(){
         return 0;
     }
@@ -24,5 +28,9 @@ public enum Piece {
             if(curPiece.ordinal() == pieceNum)
                 return curPiece;
         throw new IllegalArgumentException("Piece num has to be within ordinal limits");
+    }
+
+    public static Piece getOtherPiece(Piece piece){
+        return piece == X ? O : X;
     }
 }

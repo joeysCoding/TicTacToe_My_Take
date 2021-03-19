@@ -53,4 +53,15 @@ public class BoardImpl implements Board {
             return true;
         return false;
     }
+
+    @Override
+    public boolean isGameOver(){
+        for(int row = 0; row <= Position.UPPER_BOUND_Y; row++){
+            for(int col = 0; col <= Position.UPPER_BOUND_X; col++){
+                if(board[row] [col] == null)
+                    return false;
+            }
+        }
+        return true;
+    }
 }

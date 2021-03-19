@@ -19,14 +19,14 @@ public class TestGame {
     }
 
     @Test
-    public void pickGood() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusNotYourTurnException, GameStatusGameAlreadyStartedException {
+    public void pickGood() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusNotYourTurnException, GameStatusGameAlreadyStartedException, GameOverException {
         GameEngine gameEngine = getGameEngine();
         gameEngine.pick(starter);
         gameEngine.set(new Position(2,2, starter));
     }
 
     @Test (expected = GameStatusGameAlreadyStartedException.class)
-    public void pickBad() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusNotYourTurnException, GameStatusGameAlreadyStartedException {
+    public void pickBad() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusNotYourTurnException, GameStatusGameAlreadyStartedException, GameOverException {
         GameEngine gameEngine = getGameEngine();
         gameEngine.pick(starter);
         gameEngine.set(new Position(2,2, Piece.O));
@@ -34,7 +34,7 @@ public class TestGame {
     }
 
     @Test
-    public void setGood() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException {
+    public void setGood() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, GameOverException {
         GameEngine gameEngine = getGameEngine();
         gameEngine.pick(nonStarter);
 
@@ -44,14 +44,14 @@ public class TestGame {
     }
 
     @Test (expected = GameStatusNotYourTurnException.class)
-    public void setBadGameNotStarted() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException {
+    public void setBadGameNotStarted() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, GameOverException {
         GameEngine gameEngine = getGameEngine();
 
         gameEngine.set(new Position(2,2, starter));
     }
 
     @Test (expected = GameStatusNotYourTurnException.class)
-    public void setBadNotYourTurn() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException {
+    public void setBadNotYourTurn() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, GameOverException {
         GameEngine gameEngine = getGameEngine();
         gameEngine.pick(nonStarter);
 
@@ -61,7 +61,7 @@ public class TestGame {
     }
 
     @Test (expected = BoardPositionNotFreeException.class)
-    public void setBadBoardPositionNotFree() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException {
+    public void setBadBoardPositionNotFree() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, GameOverException {
         GameEngine gameEngine = getGameEngine();
         gameEngine.pick(nonStarter);
 
@@ -71,7 +71,7 @@ public class TestGame {
     }
 
     @Test (expected = GameStatusNotYourTurnException.class)
-    public void setBadGameAlreadyWon() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException {
+    public void setBadGameAlreadyWon() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, GameOverException {
         GameEngine gameEngine = getGameEngine();
         gameEngine.pick(nonStarter);
 
@@ -85,7 +85,7 @@ public class TestGame {
     }
 
     @Test
-    public void hasWonGood() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException {
+    public void hasWonGood() throws PositionOutOfBoundException, BoardPositionNotFreeException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, GameOverException {
         GameEngine gameEngine = getGameEngine();
         Assert.assertEquals(GameStatus.WAITING_FOR_PICK, gameEngine.getStatus());
 

@@ -3,68 +3,70 @@ package protocol;
 import board.BoardPositionNotFreeException;
 import board.Piece;
 import board.Position;
+import command.Command;
 import command.CommandAction;
 import game.GameEngine;
 import game.GameStatus;
 import game.GameStatusNotYourTurnException;
+import game.Player;
 import network.TCPStream;
 import network.TCPStreamCreatedListener;
 import userInterface.UICantGetNextMoveFromUser;
-import utils.Converter;
 
 import java.io.*;
 import java.util.List;
 import java.util.Random;
 
-
+/**
+ * Manages the communication with Bob and informs peListeners about the game
+ * states and asks the ui to get required input from user
+ * Usage:
+ * Game Alices game session with bob has to be started in this order!:
+ * 1. Construct ProtocolEngine
+ * 2. call connect() // connects Alices to bobs Protocol Engine
+ * 3. call requestNameBob() // Alice and bob exchange names
+ * 4. call amIStarter() // Alice and bob negotiate who starts
+ * 5. call startGame(Alice's GameEngine) // game starts
+ * Alices input are handled by the user interface, PE only calls PE Listeners
+ * if input is required.
+ * The game ends when one of the players has won, or all gameboard positions are
+ * set. No further action required.
+ */
 public class ProtocolEngineImpl implements ProtocolEngine{
     private final PEObserver peObserver;
     private GameEngine gameEngine;
     ProtocolStatus status;
-
-    boolean enemyRequestedMove;
     // status check flags
     boolean wasConnectionEstablished;
     boolean wasNameExchanged;
     boolean wasStarterDetermined;
     boolean wasStartEnemyConfirmed;
-
-    private final String playerNameUS;
-    private String playerNameEnemy;
-
+    // naming convention:
+    private Player alice;
+    private Player bob;
+    private final String playerNameAlice; // alice is our side, us ....
+    private String playerNameBob; // bob stands for enemy, other side ....
 
     private CoinTosser coinTosser;
+    private final Piece tossWinner = Piece.X;
+    private final Piece tossLoser = Piece.O;
+
 
     List<TCPStreamCreatedListener> streamCreatedListeners;
 
 
     TCPStream tcpStream;
-    Thread tcpStreamThread;
     private InputStream is;
     private DataInputStream dis;
     private OutputStream os;
     private DataOutputStream dos;
 
-    public ProtocolEngineImpl(String playerNameUS, PEObserver peObserver) {
-        this.playerNameUS = playerNameUS;
+    public ProtocolEngineImpl(String playerNameAlice, PEObserver peObserver) {
+        this.playerNameAlice = playerNameAlice;
         this.status = ProtocolStatus.NOT_CONNECTED;
         streamCreatedListeners.add(new StreamCreated());
         coinTosser = new CoinTosser();
         this.peObserver = peObserver;
-    }
-
-    /**
-     * converts integer to action,
-     * use to convert received command integers to command action enum
-     * @param cmdNum has to be a viable ordinal of Command Actions values
-     * @return
-     */
-    private CommandAction numToCmd(int cmdNum){
-        return CommandAction.intToCmd(cmdNum);
-    }
-
-    private int cmdToNum(CommandAction cmd){
-        return cmd.getOrdinal();
     }
 
     private class StreamCreated implements TCPStreamCreatedListener{
@@ -76,23 +78,23 @@ public class ProtocolEngineImpl implements ProtocolEngine{
     }
 
     private class CoinTosser{
-        private int us = 0;
-        private int enemy = 0;
+        private int alice = 0;
+        private int bob = 0;
 
         private boolean alreadyDetermined = false;
-        private boolean alreadyDeterminedWeStart;
+        private boolean aliceStart;
 
         public CoinTosser(){
-            this.us = this.generateRandom();
+            this.alice = this.generateRandom();
         }
 
-        public void requestEnemyCoin() {
+        public void requestBobCoin() {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    while (enemy == 0) {
+                    while (bob == 0) {
                         try {
-                            dos.writeInt(cmdToNum(CommandAction.COIN_INT_REQUEST));
+                            new Command(CommandAction.COIN_INT_REQUEST).sendVia(os);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -101,8 +103,12 @@ public class ProtocolEngineImpl implements ProtocolEngine{
             }).start();
         }
 
-        public void setEnemy(int receivedEnemyCoin){
-            this.enemy = receivedEnemyCoin;
+        public int getAliceCoin() {
+            return alice;
+        }
+
+        public void setBobCoin(int receivedEnemyCoin){
+            this.bob = receivedEnemyCoin;
         }
 
         private int generateRandom(){
@@ -113,24 +119,24 @@ public class ProtocolEngineImpl implements ProtocolEngine{
         }
 
         public boolean doWeStart() throws IOException, ProtocolEngineNoEnemyCoinReceivedException {
-            if (alreadyDetermined) return alreadyDeterminedWeStart;
-            if (enemy == 0) {
+            if (alreadyDetermined) return aliceStart;
+            if (bob == 0) {
                 // give enemy second chance to send coin
-                requestEnemyCoin();
+                requestBobCoin();
                 try {
                     Thread.sleep(50);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-            if (enemy == 0){
+            if (bob == 0){
                 // enemy didn't use second chance
                 throw new ProtocolEngineNoEnemyCoinReceivedException("Enemy didn't" +
                         " give me a coin value");
             }
-            if (this.us == this.enemy){
-                this.us = this.generateRandom();
-                this.requestEnemyCoin();
+            if (this.alice == this.bob){
+                this.alice = this.generateRandom();
+                this.requestBobCoin();
                 try {
                     Thread.sleep(50);
                 } catch (InterruptedException e) {
@@ -139,43 +145,32 @@ public class ProtocolEngineImpl implements ProtocolEngine{
                 return this.doWeStart();
             }
 
-            this.alreadyDeterminedWeStart = this.us > this.enemy;
+            this.aliceStart = this.alice > this.bob;
             this.alreadyDetermined = true;
 
-            return alreadyDeterminedWeStart;
+            return aliceStart;
         }
-    }
-
-    private void sendCmd(byte[] cmdBytes){
-
-    }
-
-    // todo
-    private int generateCoinInt(){
-        return 0;
     }
 
     private void processNextEnemyCommand() throws IOException, ProtocolEngineNoCommandInStreamException,
             ProtocolEngineStatusException, UICantGetNextMoveFromUser {
         if(dis.available() == 0)
             throw new ProtocolEngineNoCommandInStreamException("trying to read command from Sttream: but not availaba");
-        int cmdNum = this.dis.readInt();
-        CommandAction cmd = numToCmd(cmdNum);
+        Command cmd = Command.readCMDFrom(is);
+        CommandAction cmdAction = cmd.getCmdAction();
 
-        switch (cmd){
+        switch (cmdAction){
             case ENEMY_NAME_REQUEST:
-                sendCommand(CommandAction.ENEMY_NAME_RECEIVE,
-                        Converter.writeUTF(this.playerNameEnemy));
+                new Command(CommandAction.ENEMY_NAME_RECEIVE).addToCmdInfoAsUTF(this.playerNameBob).sendVia(os);
                 break;
             case ENEMY_NAME_RECEIVE:
-                this.playerNameEnemy = dis.readUTF();
+                this.playerNameBob = cmd.getCmdInfoAsDIS().readUTF();
                 break;
             case COIN_INT_REQUEST:
-                sendCommand(CommandAction.COIN_INT_RECEIVE,
-                        Converter.convert(generateCoinInt()));
+                new Command(CommandAction.COIN_INT_RECEIVE).addToCmdInfo(coinTosser.getAliceCoin()).sendVia(os);
                 break;
             case COIN_INT_RECEIVE:
-                this.coinTosser.setEnemy(dis.readInt());
+                this.coinTosser.setBobCoin(cmd.getCmdInfoAsDIS().readInt());
                 break;
             case START_REQUEST:
                 if(wasConnectionEstablished && wasNameExchanged && wasStarterDetermined)
@@ -186,7 +181,7 @@ public class ProtocolEngineImpl implements ProtocolEngine{
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    sendCommand(CommandAction.FATAL_ERROR);
+                    new Command(CommandAction.FATAL_ERROR).sendVia(os);
                     throw new ProtocolEngineStatusException("Fatal Error reported" +
                         " to Enemy, because I couldn't start Game!");
                 }
@@ -202,21 +197,20 @@ public class ProtocolEngineImpl implements ProtocolEngine{
                 }else if(this.isWinnerUS()){
                     peObserver.receiveMsg("We won.");
                 } else if(this.isWinnerEnemy()){
-                    peObserver.receiveMsg(this.playerNameEnemy + " has won. You lost!");
+                    peObserver.receiveMsg(this.playerNameBob + " has won. You lost!");
                 } else {
                     // no not done; get next move from alice and tell bob
                     peObserver.receiveMsg("Game still open!");
                     Position nextAliceMove = peObserver.promptForNextSet();
                     try {
                         this.gameEngine.set(nextAliceMove);
-                        byte[] positionBytes = nextAliceMove.toByteArray();
-                        this.sendCommand(CommandAction.RECEIVE_MOVE, positionBytes);
+                        new Command(CommandAction.RECEIVE_MOVE, nextAliceMove.toByteArray()).sendVia(os);
                     } catch (BoardPositionNotFreeException e) {
                         e.printStackTrace();
                     } catch (GameStatusNotYourTurnException e) {
                         e.printStackTrace();
                         peObserver.receiveMsg("Fatal error while setting your move." + nextAliceMove);
-                        dos.writeInt(this.cmdToNum(CommandAction.FATAL_ERROR));
+                        new Command(CommandAction.FATAL_ERROR).sendVia(os);
                         this.close();
                     }
                 }
@@ -224,48 +218,30 @@ public class ProtocolEngineImpl implements ProtocolEngine{
             case RECEIVE_MOVE:
                 // bob olready checked, if game was done, so not doing this here again
                 try {
-                    Position position = Position.readFrom(this.dis);
+                    Position position = Position.readFrom(cmd.getCmdInfoAsDIS());
                     this.gameEngine.set(position);
-                    this.sendCommand(CommandAction.MOVE_SUCCESSFULLY_SET);
-                    peObserver.receiveMsg(this.playerNameEnemy + " set position: " + position.toString());
+                    new Command(CommandAction.MOVE_SUCCESSFULLY_SET).sendVia(os);
+                    peObserver.receiveMsg(this.playerNameBob + " set position: " + position.toString());
                     peObserver.updatedBoard(gameEngine.getBoard());
                 } catch (ProtocolEngineCMDReadException | BoardPositionNotFreeException | GameStatusNotYourTurnException e) {
                     e.printStackTrace();
-                    sendCommand(CommandAction.FATAL_ERROR);
+                    new Command(CommandAction.FATAL_ERROR).sendVia(os);
                     throw new ProtocolEngineStatusException("Fatal Error reported" +
                             " to Enemy, enemies moves can't be read correctly!");
                 }
                 break;
             case MOVE_SUCCESSFULLY_SET:
                 // wether game is done will be checked by request move again, so not doing this here
-                sendCommand(CommandAction.REQUEST_MOVE);
-                peObserver.receiveMsg("Waiting for " + this.playerNameEnemy);
+                new Command(CommandAction.REQUEST_MOVE).sendVia(os);
+                peObserver.receiveMsg("Waiting for " + this.playerNameBob);
                 break;
-
             case FATAL_ERROR:
                 //todo: shut down whole f..ing program here
                 peObserver.receiveMsg("Fatal error encountered. GameOver here!!!");
                 break;
             default:
-                throw new IllegalStateException("Unexpected value: " + cmd);
+                throw new IllegalStateException("Unexpected value: " + cmdAction);
         }
-    }
-    // todo: replace with new CMD ... send
-    private void sendCommand(CommandAction cmd, byte[] cmdInfo) throws IOException {
-        int cmdTotalLength = (cmdInfo == null ? 0 : cmdInfo.length) + 2;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream localDos = new DataOutputStream(baos);
-        localDos.writeInt(cmdTotalLength);
-        int cmdInt = cmd.getOrdinal();
-        localDos.writeInt(cmdInt);
-        if(cmdInfo != null)
-            localDos.write(cmdInfo);
-        this.dos.write(baos.toByteArray());
-    }
-
-    // todo: replace with new CMD ... send
-    private void sendCommand(CommandAction cmd) throws IOException{
-        sendCommand(cmd, null);
     }
 
     private boolean isGameOver(){
@@ -273,25 +249,18 @@ public class ProtocolEngineImpl implements ProtocolEngine{
     }
 
     private boolean isWinnerUS(){
-        Piece pieceUS = this.gameEngine.getPieceUS();
+        Piece pieceUS = this.gameEngine.getPieceAlice();
         return this.gameEngine.hasWon(pieceUS);
     }
 
     private boolean isWinnerEnemy(){
-        Piece pieceEnemy = this.gameEngine.getPieceEnemy();
+        Piece pieceEnemy = this.gameEngine.getPieceBob();
         return this.gameEngine.hasWon(pieceEnemy);
     }
-
-    private Position readPositionFrom(DataInputStream dis) throws IOException, ProtocolEngineCMDReadException {
-            return null;
-    }
-
-
 
     @Override
     public void connect(int port, boolean asServer)
             throws ProtocolEngineStatusException,
-            ProtocolEngineNoConnectionException,
             IllegalArgumentException {
         if(this.status != ProtocolStatus.NOT_CONNECTED)
             throw new ProtocolEngineStatusException("trying to establish new connection, " +
@@ -333,7 +302,7 @@ public class ProtocolEngineImpl implements ProtocolEngine{
     }
 
     @Override
-    public String requestNameEnemy() throws ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException {
+    public String requestNameBob() throws ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException {
         return null;
     }
 
@@ -351,7 +320,7 @@ public class ProtocolEngineImpl implements ProtocolEngine{
             e.printStackTrace();
             // give it another try
             this.coinTosser = new CoinTosser();
-            this.coinTosser.requestEnemyCoin();
+            this.coinTosser.requestBobCoin();
             try {
                 Thread.sleep(100);
             } catch (InterruptedException interruptedException) {
@@ -362,6 +331,7 @@ public class ProtocolEngineImpl implements ProtocolEngine{
     }
 
     @Override
+    // todo:
     public void close() {
 
     }
@@ -370,18 +340,6 @@ public class ProtocolEngineImpl implements ProtocolEngine{
     public void startGame(GameEngine gameEngine) {
         this.gameEngine = gameEngine;
     }
-
-
-//
-//    @Override
-//    public void registerMove(Position position) throws BoardPositionNotFreeException, GameOverException {
-//
-//    }
-//
-//    @Override
-//    public void requestMove() {
-//
-//    }
 
     private void addStreamCreatedListener(TCPStreamCreatedListener listener){
         if(!streamCreatedListeners.contains(listener))

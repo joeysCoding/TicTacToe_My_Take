@@ -1,25 +1,31 @@
 package command;
 
-import utils.Converter;
-
 import java.io.*;
 
-class CMD {
-    public final CommandAction cmdAction;
-    public byte[] cmdInfo;
+public class Command {
+    private final CommandAction cmdAction;
+    private byte[] cmdInfo;
     private int cmdTotalLength;
     private byte[] entireCmd;
 
 
-    public CMD(CommandAction cmdAction, byte[] cmdInfo) {
+    public Command(CommandAction cmdAction, byte[] cmdInfo) {
         this.cmdAction = cmdAction;
         this.cmdInfo = cmdInfo;
         setCmdTotalLength();
         setEntireCmd();
     }
 
-    public CMD(CommandAction cmdAction) {
+    public Command(CommandAction cmdAction) {
         this(cmdAction, null);
+    }
+
+    public CommandAction getCmdAction() {
+        return cmdAction;
+    }
+
+    public byte[] getCmdInfo() {
+        return cmdInfo;
     }
 
     private void setEntireCmd() {
@@ -47,16 +53,16 @@ class CMD {
     }
 
 
-    public static CMD createCMDFrom(InputStream is) throws IOException {
-        return createCMDFrom(new DataInputStream(is));
+    public static Command readCMDFrom(InputStream is) throws IOException {
+        return readCMDFrom(new DataInputStream(is));
     }
 
-    public static CMD createCMDFrom(DataInputStream dis) throws IOException {
+    public static Command readCMDFrom(DataInputStream dis) throws IOException {
         int length = dis.readInt();
         CommandAction cmd = CommandAction.intToCmd(dis.readInt());
         byte[] info = dis.readNBytes(length - 2);
 
-        return new CMD(cmd, info);
+        return new Command(cmd, info);
     }
 
     /**
@@ -82,7 +88,7 @@ class CMD {
      * argument is added in the same order as addToCmd... methods are called
      * @param num
      */
-    public void addToCmdInfo(int num){
+    public Command addToCmdInfo(int num){
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(baos);
         try {
@@ -93,13 +99,16 @@ class CMD {
             e.printStackTrace();
         }
         cmdInfo = baos.toByteArray();
+        return this;
     }
+
 
     /**
      * see addToCmdInfo comment
      * @param txt
+     * @return
      */
-    public void addToCmdInfoAsUTF(String txt) {
+    public Command addToCmdInfoAsUTF(String txt) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(baos);
         try {
@@ -109,5 +118,6 @@ class CMD {
             e.printStackTrace();
         }
         cmdInfo = baos.toByteArray();
+        return this;
     }
 }

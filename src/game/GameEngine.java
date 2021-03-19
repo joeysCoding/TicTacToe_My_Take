@@ -9,17 +9,6 @@ import protocol.RequestEnemyMoveObserver;
 
 public interface GameEngine {
     /**
-     * set the piece of this sides player
-     * (can't be set in constructor, because it has
-     * to be negotiated by the ProtocalEngine first)
-     * The game starts after the piece is picked
-     * @param piece
-     * @exception GameStatusNotYourTurnException pick can't be called after
-     * game has already started
-     */
-    void pick(Piece piece) throws GameStatusGameAlreadyStartedException;
-
-    /**
      * set this position
      * @param position
      * @exception BoardPositionNotFreeException there aleardy is a piece at this position
@@ -27,7 +16,7 @@ public interface GameEngine {
      * because its not his turn, or game has't been started, or has ended
      */
     void set(Position position)
-            throws BoardPositionNotFreeException, GameStatusNotYourTurnException;
+            throws BoardPositionNotFreeException, GameStatusNotYourTurnException, GameOverException;
 
     /**
      * has this piece won?
@@ -42,19 +31,13 @@ public interface GameEngine {
      */
     GameStatus getStatus();
 
-    boolean getRequestedEnemyMove();
-
-    void addRequestEnemyMoveObserver(RequestEnemyMoveObserver observer);
-
-    void addMoveObservers(MoveObserver observer);
+    /**
+     * which piece can play currently,
+     * @return null if game status is game over or won, check with getStatus() first
+     */
+    Piece getTurn();
 
     Board getBoard();
 
-    boolean isReadyForMove(Piece piece);
 
-    String getName();
-
-    Piece getPieceUS();
-
-    Piece getPieceEnemy();
 }

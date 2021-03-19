@@ -28,4 +28,12 @@ public interface Board {
      * @return true - yes has won
      */
     boolean hasWon(Piece piece);
+
+    /**
+     * all positions are set (doesn't say anything about whether the game was won,
+     * only that there are no more possible moves)
+     * @return true - no more free position -> Game Over
+     * false - there is still at least one free position on the board
+     */
+    boolean isGameOver();
 }
