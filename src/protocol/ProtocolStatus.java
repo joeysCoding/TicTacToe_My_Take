@@ -1,9 +1,11 @@
 package protocol;
 
 public enum ProtocolStatus {
-    NOT_CONNECTED,
+    NO_CONNECTION_CONFIRMED,
     CONNECTED,
-    NAMED,
-    GAME_STARTED,
-    GAME_ENDED;
+    NAMES_EXCHANGED,
+    STARTER_DETERMINED,
+    GAME_RUNNING,
+    GAME_ENDED,
+    FATAL;
 }

@@ -4,7 +4,10 @@ package command;
  * don't use magic numbers to refer to this actions, use ordinance()
  */
 public enum CommandAction {
-    ENEMY_NAME_REQUEST,
+    REQUEST_CONNECTION_CONFIRMANTION,
+    RECEIVE_CONNECTION_CONFIRMED,
+
+    REQUEST_NAME,
     ENEMY_NAME_RECEIVE,
 
     COIN_INT_REQUEST,

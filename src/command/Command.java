@@ -8,6 +8,10 @@ public class Command {
     private int cmdTotalLength;
     private byte[] entireCmd;
 
+    private final static int byteLengthPre = 4; // num bytes of first byte of cmd that
+    // indicate the total length in of the command, its an int so its 4 bytes
+    private final static int byteLengthCmdAction = 4;
+
 
     public Command(CommandAction cmdAction, byte[] cmdInfo) {
         this.cmdAction = cmdAction;
@@ -35,6 +39,7 @@ public class Command {
             dos.writeInt(cmdTotalLength);
             int cmdInt = getCmdInt(cmdAction);
             dos.writeInt(cmdInt);
+            // todo: debugger says its empty, but still goes into if
             if (cmdInfo != null)
                 dos.write(cmdInfo);
             entireCmd = baos.toByteArray();
@@ -49,7 +54,8 @@ public class Command {
     }
 
     private void setCmdTotalLength() {
-        this.cmdTotalLength = (cmdInfo == null ? 0 : cmdInfo.length) + 2;
+        this.cmdTotalLength = (cmdInfo == null ? 0 : cmdInfo.length)
+                + byteLengthPre + byteLengthCmdAction;
     }
 
 
@@ -60,7 +66,7 @@ public class Command {
     public static Command readCMDFrom(DataInputStream dis) throws IOException {
         int length = dis.readInt();
         CommandAction cmd = CommandAction.intToCmd(dis.readInt());
-        byte[] info = dis.readNBytes(length - 2);
+        byte[] info = dis.readNBytes(length - byteLengthPre - byteLengthCmdAction);
 
         return new Command(cmd, info);
     }
@@ -70,7 +76,7 @@ public class Command {
      * @return creates a new dis for each call
      */
     public DataInputStream getCmdInfoAsDIS(){
-        ByteArrayInputStream bais = new ByteArrayInputStream(entireCmd);
+        ByteArrayInputStream bais = new ByteArrayInputStream(cmdInfo);
         DataInputStream dis = new DataInputStream(bais);
         return dis;
     }
@@ -99,8 +105,10 @@ public class Command {
             e.printStackTrace();
         }
         cmdInfo = baos.toByteArray();
+        updateFields();
         return this;
     }
+
 
 
     /**
@@ -114,10 +122,33 @@ public class Command {
         try {
             if(cmdInfo != null) dos.write(cmdInfo);
             dos.writeUTF(txt);
+            dos.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
         cmdInfo = baos.toByteArray();
+        updateFields();
         return this;
     }
+
+    private void updateFields(){
+        updateCmdTotalLength();
+        setEntireCmd();
+    }
+
+    private void updateCmdTotalLength(){
+        this.cmdTotalLength = cmdInfo.length + byteLengthPre + byteLengthCmdAction;
+    }
+
+//    private void updateBytesEntireCmd(){
+//        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//        DataOutputStream dos = new DataOutputStream(baos);
+//        try {
+//            dos.writeInt(cmdTotalLength);
+//            dos.writeInt(getCmdInt(cmdAction));
+//            dos.write(cmdInfo);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }
 }

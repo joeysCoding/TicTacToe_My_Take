@@ -14,7 +14,7 @@ public class TestBoard {
         Assert.assertTrue(board.isFree(new Position(0,0, Piece.X)));
         board.set(new Position(0,0, Piece.X));
         Assert.assertFalse(board.isFree(new Position(0,0, Piece.X)));
-        Piece actualPiece = board.getPieceAt(new Position(0, 0, null));
+        Piece actualPiece = board.getPieceAt(new Position(0, 0, (Piece) null));
 
         Assert.assertEquals(Piece.X ,actualPiece);
     }

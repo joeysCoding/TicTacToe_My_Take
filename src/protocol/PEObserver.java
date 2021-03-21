@@ -15,5 +15,5 @@ public interface PEObserver {
 
     void receiveMsg(String msg);
 
-    void promptName();
+    String promptName();
 }

@@ -1,5 +1,6 @@
 package board;
 
+import game.Player;
 import protocol.ProtocolEngineCMDReadException;
 
 import java.io.ByteArrayOutputStream;
@@ -22,6 +23,10 @@ public class Position {
         this.x = x;
         this.y = y;
         this.piece = piece;
+    }
+
+    public Position(int x, int y, Player player) throws PositionOutOfBoundException{
+        this(x, y, player.piece);
     }
 
     private boolean isOutOfBound(int x, int y){

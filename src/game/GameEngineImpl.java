@@ -2,6 +2,12 @@ package game;
 
 import board.*;
 
+/**
+ * Manages the board
+ * usage: Use set to set pieces on the board. GE ensures that players can set in alternating order
+ * !Here always the same piece starts, but during coin tossing the pieces are allocated
+ * depending on which player is winner or loser
+ */
 public class GameEngineImpl implements GameEngine {
     private GameStatus status; // !!! Don't change directly use setter!!!
     private final Board board;
@@ -10,6 +16,7 @@ public class GameEngineImpl implements GameEngine {
     private final Player alice;
     private final Player bob;
 
+    // only set once game status GAME_WON, otherwise null
     private Piece Winner;
     private Piece Loser;
 
@@ -26,19 +33,25 @@ public class GameEngineImpl implements GameEngine {
 
     @Override
     public synchronized void set(Position position)
-            throws BoardPositionNotFreeException, GameStatusNotYourTurnException, GameOverException {
+            throws BoardPositionNotFreeException, GameStatusNotYourTurnException, GameOverException, GameWonException {
+        if(status == GameStatus.GAME_OVER)
+            throw new GameOverException("Trying to play, but game is already over!");
+        if(status == GameStatus.GAME_WON)
+            throw new GameWonException("Trying to play, but game is already won!");
         if(turn != position.piece)
             throw new GameStatusNotYourTurnException("trying to play game but its not your turn. " +
                     "Your Piece: " + position.piece + " game status is actual: " + this.status);
-        if(status != GameStatus.GAMING)
-            throw new GameOverException("Trying to play, but game is already over!");
         try{
             board.set(position);
-            if(board.hasWon(position.piece))
+            if(board.hasWon(position.piece)){
+                this.Winner = position.piece;
+                this.Loser = Piece.getOtherPiece(position.piece);
                 this.setStatus(GameStatus.GAME_WON);
-            if(board.isGameOver())
+                this.turn = null;
+            } else if(board.isGameOver()){
                 this.setStatus(GameStatus.GAME_OVER);
-            else {
+                this.turn = null;
+            } else {
                 this.turn = Piece.getOtherPiece(position.piece);
             }
         } catch (BoardPositionNotFreeException e){
@@ -48,13 +61,23 @@ public class GameEngineImpl implements GameEngine {
     }
 
     @Override
-    public boolean hasWon(Piece piece) {
-        return board.hasWon(piece);
+    public boolean hasWon(Piece piece){
+        if(this.status != GameStatus.GAME_WON)
+            return false;
+        return this.Winner == piece;
     }
 
     @Override
     public GameStatus getStatus() {
         return status;
+    }
+
+    public Piece getWinner() {
+        return Winner;
+    }
+
+    public Piece getLoser() {
+        return Loser;
     }
 
     @Override
@@ -63,5 +86,15 @@ public class GameEngineImpl implements GameEngine {
     @Override
     public Board getBoard() {
         return this.board;
+    }
+
+    @Override
+    public Player getAlice() {
+        return alice;
+    }
+
+    @Override
+    public Player getBob() {
+        return bob;
     }
 }

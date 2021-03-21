@@ -2,240 +2,178 @@ package protocol;
 
 import board.*;
 import game.*;
+import network.TCPStream;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import userInterface.UICantGetNextMoveFromUser;
 
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
 public class TestProtocol {
     private static final String HOSTNAME = "localhost";
     private static final int PORT_BASE_NR = 5555;
     private static int newPortCounter;
+    private static long waitTimeMillis = 500;
 
-    private static final Piece starter = Piece.O;
-    private static final Piece nonStarter = Piece.X;
-
-    private final GameStatus firstTurn = starter == Piece.O ? GameStatus.TURN_O : GameStatus.TURN_X;
-    private final GameStatus secondTurn = starter == Piece.O ? GameStatus.TURN_X : GameStatus.TURN_O;
-
-    private static final String ALICE = "alice";
-    private static final String BOB = "bob";
+    String aliceName = "aliceson";
+    String bobName = "boby";
 
     @BeforeClass
-    public static void initNewPortCounter(){
+    public static void initNewPortCounter() {
         newPortCounter = 0;
     }
 
-    private ProtocolEngine getProtocolEngine(String name){
-        return null;
+    private ProtocolEngine getProtocolEngine(PEObserver playerUI) throws ProtocolEngineNoConnectionException {
+        return new ProtocolEngineImpl(playerUI);
+
     }
 
-    private GameEngine getGameEngineAlice(){
-        // todo: choose starting piece in constructor, same for both sides, set player name
-        // assumption in tests O starts, set enemy player name
-        Board board = new BoardImpl();
-        return new GameEngineImpl(board, starter, "Alice", "Bob");
+    private class FakeUI implements PEObserver{
+        public String userName;
+        public boolean wasPromptedUserName = false;
+        public List<Position> userMoves;
+
+        public String lastMsg;
+        public boolean wasUpdatedBoard = false;
+
+        public FakeUI(String userName){
+            this(userName, null);
+        }
+
+        public FakeUI(String userName, List<Position> userMoves){
+            this.userName = userName;
+            if(userMoves == null)
+                this.userMoves = new LinkedList<>();
+            else
+                this.userMoves = userMoves;
+
+        }
+
+        /**
+         *
+         * @param move add to end of list, this position will be moved to last
+         */
+        public void addUserMove(Position move){
+            userMoves.add(move);
+        }
+
+
+        @Override
+        public Position promptForNextSet() throws UICantGetNextMoveFromUser {
+            if(userMoves == null)
+                throw new UICantGetNextMoveFromUser();
+            return userMoves.remove(0);
+        }
+
+        @Override
+        public void updatedBoard(Board board) {
+
+        }
+
+        @Override
+        public void receiveMsg(String msg) {
+            this.lastMsg = msg;
+            System.out.println(this.userName + " UI received msg: " + msg);
+        }
+
+        @Override
+        public String promptName() {
+            this.wasPromptedUserName = true;
+            return userName;
+        }
     }
 
-    private GameEngine getGameEngineBob(){
-        // todo: choose starting piece in constructor, same for both sides, set player name
-        // assumption in tests O starts, set enemy player name
-        Board board = new BoardImpl();
-        return new GameEngineImpl(board, starter, "Alice", "Bob");
+    private GameEngine getGameEngineAlice(Player alice, Player bob) {
+        return new GameEngineImpl(alice, bob);
     }
 
-    private int getUniquePort(){
+    private GameEngine getGameEngineBob(Player alice, Player bob) {
+        return new GameEngineImpl(bob, alice);
+    }
+
+    private int getUniquePort() {
         return PORT_BASE_NR + newPortCounter++;
     }
 
-    private void waitForBob(GameEngine aliceGameEngine, Piece alicePiece) throws InterruptedException {
-//        while(!aliceGameEngine.isReadyForMove(alicePiece)){
-//            Thread.sleep(50);
-//        }
-    }
-
-    private class EnemyMoveObserver implements MoveObserver {
-        public Position latestEnemyMove = null;
-
-        @Override
-        public void registerMove(Position position) throws BoardPositionNotFreeException, GameOverException {
-            latestEnemyMove = position;
-        }
-    }
-
-    private class EnemyMoveRequest implements RequestEnemyMoveObserver {
-        public boolean moveRequested = false;
-        @Override
-        public void requestMove() {
-            moveRequested = true;
-        }
-
-        public void setMoveRequested(boolean moveRequested) {
-            this.moveRequested = moveRequested;
-        }
-    }
-
-
     @Test
-    public void connectGoodrequestNameGood() throws ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException, PositionOutOfBoundException, GameStatusGameAlreadyStartedException, GameStatusNotYourTurnException, BoardPositionNotFreeException, InterruptedException, ProtocolEngineStatusException, IOException, ProtocolEngineNoEnemyCoinReceivedException {
-        ///////////////////////////////////////////////////////////////
-        ///                 setup Protocol engines
-        ///////////////////////////////////////////////////////////////
-        MoveObserver enemyBobMoved = new EnemyMoveObserver();
-        MoveObserver enemyAliceMoved = new EnemyMoveObserver();
+    public void connectAndRequestBobNameGood()
+            throws ProtocolEngineNoConnectionException,
+            ProtocolEngineResponseFormatException,
+            IOException, InterruptedException, ProtocolEngineNoEnemyCoinReceivedException, PositionOutOfBoundException {
+        FakeUI uiAliceImpl = new FakeUI(aliceName);
+        PEObserver uiAlice = uiAliceImpl;
+        FakeUI uiBobImpl = new FakeUI(bobName);
+        PEObserver uiBob = uiBobImpl;
 
-//        RequestEnemyMoveObserver enemyBobReady = new EnemyMoveRequest();
-//        RequestEnemyMoveObserver enemyAliceReady = new EnemyMoveRequest();
-
-        ProtocolEngine aliceProtocol = getProtocolEngine(ALICE);
-        ProtocolEngine bobProtocol = getProtocolEngine(BOB);
-
-        Assert.assertEquals(ProtocolStatus.NOT_CONNECTED, aliceProtocol.getStatus());
-        Assert.assertEquals(ProtocolStatus.NOT_CONNECTED, bobProtocol.getStatus());
-
-        // connect; server first
         int port = getUniquePort();
-        aliceProtocol.connect(port, true);
-        bobProtocol.connect(port, false);
+        TCPStream streamAlice = new TCPStream(port, true, "aliceStream");
+        TCPStream streamBob = new TCPStream(port, false, "bobStream");
 
-        Assert.assertEquals(ProtocolStatus.CONNECTED, aliceProtocol.getStatus());
-        Assert.assertEquals(ProtocolStatus.CONNECTED, bobProtocol.getStatus());
-
-        // request name enemy
-        String bobName = aliceProtocol.requestNameBob();
-        String aliceName = bobProtocol.requestNameBob();
-
-        Assert.assertEquals(BOB, bobName);
-        Assert.assertEquals(ALICE, aliceName);
-
-        Assert.assertEquals(ProtocolStatus.NAMED, aliceProtocol.getStatus());
-        Assert.assertEquals(ProtocolStatus.NAMED, bobProtocol.getStatus());
-
-        /////////////////////////////////////////////////////////////////////
-        ///                         starting the game
-        /////////////////////////////////////////////////////////////////////
-
-        // negotiate who starts
-        boolean startAlice = aliceProtocol.amIStarter();
-        boolean startBob = bobProtocol.amIStarter();
-
-        Assert.assertTrue(startAlice ^ startBob);
+        streamAlice.start(); streamBob.start();
+        streamAlice.waitForConnection(); streamBob.waitForConnection();
 
 
+        ProtocolEngine peAlice = getProtocolEngine(uiAlice);
+        ProtocolEngine peBob = getProtocolEngine(uiBob);
 
-        // todo: need alice game engine
-        // use code from Game Engine Test to simulate game
-        // feed the gameengine with observers and make private class here in test
-        // that checkes weather it was called , with status flag
-        // if the protocol engine was the central controlling piece of this program
-        // you wouldn't have to do most of this shit!!!
+        // confirm connection - run started in pe
 
-        // todo: take the input and outputstreams from Protocol engine and
-        // check
-        GameEngine aliceGameEngine = getGameEngineAlice();
+        peAlice.handleConnection(streamAlice.getOutputStream(), streamAlice.getInputStream());
+        peBob.handleConnection(streamBob.getOutputStream(), streamBob.getInputStream());
 
-//        EnemyMoveRequest aliceRequestFromBob = new EnemyMoveRequest();
-//        aliceGameEngine.addRequestEnemyMoveObserver(aliceRequestFromBob);
-//
-//        EnemyMoveObserver aliceGEMovesToBob = new EnemyMoveObserver();
-//        aliceGameEngine.addMoveObservers(aliceGEMovesToBob);
+       Thread.sleep(waitTimeMillis);
 
-        aliceGameEngine.pick(starter);
-        Assert.assertEquals(firstTurn, aliceGameEngine.getStatus());
+        Assert.assertTrue(peAlice.isConnectionEstablished());
+        Assert.assertTrue(peBob.isConnectionEstablished());
 
-        GameEngine bobGameEngine = getGameEngineBob();
-        bobGameEngine.pick(nonStarter);
-        Assert.assertEquals(secondTurn, bobGameEngine.getStatus());
+        // confirm name exchange
 
-        // start the game
-        aliceProtocol.startGame(aliceGameEngine);
-        bobProtocol.startGame(bobGameEngine);
+        Thread.sleep(waitTimeMillis);
 
-        /////////////////////////////////////////////////////////////////////////////////
-        ///                         playing
-        /////////////////////////////////////////////////////////////////////////////////
-/*
 
-        // Observers before any move
-        Position firstAliceSet = new Position(0,0, starter);
+        Assert.assertTrue(uiAliceImpl.wasPromptedUserName);
+        Assert.assertTrue(peAlice.isNameExchanged());
+        Assert.assertEquals(bobName, peAlice.getPlayerNameBob());
 
-        Assert.assertFalse(aliceRequestFromBob.moveRequested);
-        Assert.assertFalse(aliceGameEngine.getRequestedEnemyMove());
+        Assert.assertTrue(uiBobImpl.wasPromptedUserName);
+        Assert.assertTrue(peBob.isNameExchanged());
+        // peBob.getPlayerNameBob() stands for get other player name
+        Assert.assertEquals(aliceName, peBob.getPlayerNameBob());
 
-        waitForBob(aliceGameEngine,starter);
-        aliceGameEngine.set(firstAliceSet);
-
-        // Observers have to be triggered
-        Assert.assertEquals(0, aliceGEMovesToBob.latestEnemyMove.x);
-        Assert.assertEquals(0, aliceGEMovesToBob.latestEnemyMove.y);
-        Assert.assertEquals(starter, aliceGEMovesToBob.latestEnemyMove.piece);
-
-        Assert.assertTrue(aliceRequestFromBob.moveRequested);
-        // for the flag in game engine
-        Assert.assertTrue(aliceGameEngine.getRequestedEnemyMove());
-
-        // did the move make it to bob board
-        Assert.assertEquals(starter, bobGameEngine.getBoard().getPieceAt(firstAliceSet));
-
-        bobGameEngine.set(new Position(1,2, nonStarter));
-        Assert.assertFalse(aliceGameEngine.getRequestedEnemyMove());
-
-        waitForBob(aliceGameEngine,starter);
-        aliceGameEngine.set(new Position(0,1, starter));
-        Assert.assertTrue(aliceGameEngine.getRequestedEnemyMove());
-
-        bobGameEngine.set(new Position(2,2, nonStarter));
-
-        waitForBob(aliceGameEngine,starter);
-        aliceGameEngine.set(new Position(0,2, starter));
-        Assert.assertEquals(GameStatus.GAME_WON, aliceGameEngine.getStatus());
-        Assert.assertTrue(aliceGameEngine.hasWon(starter));
-        Assert.assertTrue(aliceGameEngine.hasWon(nonStarter));
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        while(!(peAlice.isStarterDetermined() && peBob.isStarterDetermined())){
+            Thread.sleep(waitTimeMillis);
         }
-        // Bobs Gameengine has to recognize that he lost
-        Assert.assertEquals(GameStatus.GAME_WON, bobGameEngine.getStatus());
-        Assert.assertFalse(bobGameEngine.hasWon(nonStarter));
-        Assert.assertTrue(bobGameEngine.hasWon(starter));*/
+
+        // who starts the game
+        Assert.assertTrue(peAlice.isStarterDetermined());
+        Assert.assertTrue(peAlice.amIStarter() ^ peBob.amIStarter());
+
+        ///////////////////////////////////////////////////////////////
+        //                  Starting the game
+        ///////////////////////////////////////////////////////////////
+        Piece alicePiece = peAlice.amIStarter() ?
+                Piece.STARTER : Piece.getOtherPiece(Piece.STARTER);
+        Player alice = new Player(aliceName, alicePiece, Side.ALICE);
+        Piece bobPiece = Piece.getOtherPiece(alice.piece);
+        Player bob = new Player(bobName, bobPiece, Side.BOB);
+
+        uiAliceImpl.addUserMove(new Position(0,0,alice.piece));
+        uiAliceImpl.addUserMove(new Position(1,1,alice.piece));
+        uiAliceImpl.addUserMove(new Position(2,2,alice.piece));
+
+        uiBobImpl.addUserMove(new Position(0,1, bob.piece));
+        uiBobImpl.addUserMove(new Position(2,1, bob.piece));
+        uiBobImpl.addUserMove(new Position(1,0, bob.piece));
 
 
 
-        // todo: clean up
-        // - threads
-        // - sockets
-        aliceProtocol.close();
-        bobProtocol.close();
-        // - etc.
+
+
+
+
     }
-
-/*    @Test (expected = IllegalArgumentException.class)
-    public void connectBadPort() throws ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException {
-        ProtocolEngine aliceProtocol = getProtocolEngine(ALICE);
-
-        aliceProtocol.connect(11);
-    }*/
-
-/*    @Test
-    public void someFuckingName () throws ProtocolEngineNoConnectionException, ProtocolEngineResponseFormatException {
-        ProtocolEngine aliceProtocol = getProtocolEngine(ALICE);
-        ProtocolEngine bobProtocol = getProtocolEngine(BOB);
-
-        Assert.assertEquals(ProtocolStatus.NOT_CONNECTED, aliceProtocol.getStatus());
-        Assert.assertEquals(ProtocolStatus.NOT_CONNECTED, bobProtocol.getStatus());
-
-        // yes, both Alice and Bob have to use connect, server first
-        int port = getUniquePort();
-        aliceProtocol.connect(port);
-        bobProtocol.connect(port, HOSTNAME);
-
-        Assert.assertEquals(ProtocolStatus.CONNECTED, aliceProtocol.getStatus());
-        Assert.assertEquals(ProtocolStatus.CONNECTED, bobProtocol.getStatus());
-
-        Assert.assertEquals(BOB, aliceProtocol.requestNameEnemy());
-        Assert.assertEquals(ALICE, bobProtocol.requestNameEnemy());
-    }*/
 }
+

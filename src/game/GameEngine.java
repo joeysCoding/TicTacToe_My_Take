@@ -16,7 +16,7 @@ public interface GameEngine {
      * because its not his turn, or game has't been started, or has ended
      */
     void set(Position position)
-            throws BoardPositionNotFreeException, GameStatusNotYourTurnException, GameOverException;
+            throws BoardPositionNotFreeException, GameStatusNotYourTurnException, GameOverException, GameWonException;
 
     /**
      * has this piece won?
@@ -40,4 +40,7 @@ public interface GameEngine {
     Board getBoard();
 
 
+    Player getAlice();
+
+    Player getBob();
 }
